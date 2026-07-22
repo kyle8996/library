@@ -52,6 +52,7 @@
   .record-item.status-borrowed { border-left-color:var(--warning); }
   .record-item.status-returned { border-left-color:var(--success); opacity:0.75; }
   .record-item.status-overdue { border-left-color:var(--danger); background:#FFF5F5; }
+  .record-item.status-not_received { border-left-color:#E91E63; background:#FFF0F6; }
   .record-photo { width:64px; height:84px; min-width:64px; border-radius:8px; object-fit:cover; border:1px solid var(--border); background:#f5f5f5; }
   .record-info { flex:1; min-width:0; }
   .record-name { font-size:15px; font-weight:700; }
@@ -60,10 +61,14 @@
   .record-dates { display:flex; gap:12px; margin-top:6px; font-size:12px; flex-wrap:wrap; }
   .date-badge { padding:3px 10px; border-radius:12px; font-weight:600; font-size:11px; }
   .date-borrow { background:#FFF3E0; color:#E65100; } .date-due { background:#E8F5E9; color:#2E7D32; } .date-due.overdue { background:#FFEBEE; color:#C62828; }
+  .date-returned { background:#E8F5E9; color:#2E7D32; }
+  .badge-not-received { display:inline-block; background:linear-gradient(135deg,#E91E63,#F06292); color:#fff; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:700; animation:pulse 1.8s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.65} }
   .record-actions { display:flex; flex-direction:column; gap:6px; }
   .action-btn { padding:6px 12px; border:none; border-radius:8px; font-size:12px; cursor:pointer; font-weight:600; white-space:nowrap; }
   .btn-return { background:var(--success); color:#fff; } .btn-delete { background:#FFE0E0; color:var(--danger); } .btn-notify { background:var(--warning); color:#fff; }
-  .btn-return:hover, .btn-notify:hover { opacity:0.85; } .btn-delete:hover { background:var(--danger); color:#fff; }
+  .btn-not-received { background:linear-gradient(135deg,#E91E63,#F06292); color:#fff; } .btn-confirm-received { background:var(--success); color:#fff; }
+  .btn-return:hover, .btn-notify:hover, .btn-not-received:hover, .btn-confirm-received:hover { opacity:0.85; } .btn-delete:hover { background:var(--danger); color:#fff; }
 
   .empty-state { text-align:center; padding:60px 20px; color:var(--text-light); }
   .empty-state .icon { font-size:48px; margin-bottom:12px; }
@@ -94,6 +99,7 @@
   <div class="stat-card borrowed"><div class="stat-num c-orange" id="statBorrowed">0</div><div class="stat-label">借出中</div></div>
   <div class="stat-card returned"><div class="stat-num c-green" id="statReturned">0</div><div class="stat-label">已归还</div></div>
   <div class="stat-card overdue"><div class="stat-num c-red" id="statOverdue">0</div><div class="stat-label">已逾期</div></div>
+  <div class="stat-card" style="border-color:#E91E63;"><div class="stat-num" style="color:#E91E63;" id="statNotReceived">0</div><div class="stat-label">🚨 未收到</div></div>
 </div>
 
 <!-- 二维码卡片 -->
@@ -121,6 +127,7 @@
     <option value="">全部状态</option>
     <option value="borrowed">借出中</option>
     <option value="returned">已归还</option>
+    <option value="not_received">🚨 校区未收到</option>
     <option value="overdue">已逾期</option>
   </select>
   <select id="filterClass" onchange="renderRecords()"><option value="">全部班级</option></select>
@@ -165,13 +172,15 @@ function isOverdue(rec) {
 function updateStats() {
   const total = records.length;
   const returned = records.filter(r => r.status === 'returned').length;
+  const notReceived = records.filter(r => r.status === 'not_received').length;
   let overdue = 0;
   records.forEach(r => { if (r.status === 'borrowed' && isOverdue(r)) { overdue++; r.status = 'overdue'; } });
-  const borrowed = total - returned - overdue;
+  const borrowed = total - returned - notReceived - overdue;
   document.getElementById('statTotal').textContent = total;
   document.getElementById('statBorrowed').textContent = borrowed;
   document.getElementById('statReturned').textContent = returned;
   document.getElementById('statOverdue').textContent = overdue;
+  document.getElementById('statNotReceived').textContent = notReceived;
 }
 
 function populateClassFilter() {
@@ -194,8 +203,10 @@ function renderRecords() {
     return true;
   });
   filtered.sort((a,b) => {
-    if (a.status === 'overdue' && b.status !== 'overdue') return -1;
-    if (b.status === 'overdue' && a.status !== 'overdue') return 1;
+    if (a.status === 'not_received' && b.status !== 'not_received') return -1;
+    if (b.status === 'not_received' && a.status !== 'not_received') return -1;
+    if (a.status === 'overdue' && b.status !== 'overdue' && b.status !== 'not_received') return -1;
+    if (b.status === 'overdue' && a.status !== 'overdue' && a.status !== 'not_received') return 1;
     return new Date(b.created_at || b.borrow_date) - new Date(a.created_at || a.borrow_date);
   });
   const container = document.getElementById('recordsList');
@@ -205,25 +216,53 @@ function renderRecords() {
   }
   container.innerHTML = filtered.map(r => {
     const overdue = isOverdue(r) || r.status === 'overdue';
-    const sc = overdue ? 'status-overdue' : (r.status === 'returned' ? 'status-returned' : 'status-borrowed');
-    const st = overdue ? '⏰ 已逾期' : (r.status === 'returned' ? '✅ 已归还' : '📖 借出中');
+    const isNR = r.status === 'not_received';
+    const isRet = r.status === 'returned';
+    // 样式优先级：未收到 > 逾期 > 已归还 > 借出中
+    const sc = isNR ? 'status-not_received' : (overdue ? 'status-overdue' : (isRet ? 'status-returned' : 'status-borrowed'));
+    const st = isNR ? '🚨 校区未收到' : (overdue ? '⏰ 已逾期' : (isRet ? '✅ 已归还' : '📖 借出中'));
     const dc = overdue ? 'date-due overdue' : 'date-due';
+
+    // 格式化实际归还日期
+    let returnDateHtml = '';
+    if ((isRet || isNR) && r.returned_at) {
+      const rd = new Date(r.returned_at);
+      returnDateHtml = `<span class="date-badge date-returned">实际归还：${rd.getFullYear()}-${String(rd.getMonth()+1).padStart(2,'0')}-${String(rd.getDate()).padStart(2,'0')}</span>`;
+    }
+
+    // 操作按钮逻辑
+    let actions = '';
+    if (isNR) {
+      // 未收到状态：可以确认收到 或 删除
+      actions = `
+        <button class="action-btn btn-confirm-received" onclick="markReceived('${r.id}')">✅ 确认收到</button>
+        <button class="action-btn btn-delete" onclick="deleteRecord('${r.id}')">删除</button>`;
+    } else if (isRet) {
+      // 已归还状态：可以标记未收到 或 删除
+      actions = `
+        <button class="action-btn btn-not-received" onclick="markNotReceived('${r.id}')">🚨 标记未收到</button>
+        <button class="action-btn btn-delete" onclick="deleteRecord('${r.id}')">删除</button>`;
+    } else {
+      // 借出中/逾期：标记归还、提醒还书、删除
+      actions = `
+        <button class="action-btn btn-return" onclick="markReturned('${r.id}')">标记归还</button>
+        <button class="action-btn btn-notify" onclick="copyReminder('${r.id}')">提醒还书</button>
+        <button class="action-btn btn-delete" onclick="deleteRecord('${r.id}')">删除</button>`;
+    }
+
     return `
     <div class="record-item ${sc}" data-id="${r.id}">
       <img class="record-photo" src="${r.book_photo || ''}" alt="封面" onerror="this.style.display='none'" onclick="event.stopPropagation();showPhoto('${r.book_photo || ''}')">
       <div class="record-info">
-        <div class="record-name">${escapeHtml(r.child_name)} <small style="font-weight:400;font-size:12px;color:var(--text-light)">${st}</small></div>
+        <div class="record-name">${escapeHtml(r.child_name)} ${isNR ? '<span class="badge-not-received">校区未收到！</span>' : ''}<small style="font-weight:400;font-size:12px;color:var(--text-light)"> ${st}</small></div>
         <div class="record-meta"><span>📚 ${escapeHtml(r.class_name||'')}</span><span>👨‍🏫 ${escapeHtml(r.teacher_name||'')}</span></div>
         <div class="record-dates">
           <span class="date-badge date-borrow">借出：${r.borrow_date}</span>
           <span class="date-badge ${dc}">应还：${r.due_date}${overdue ? ' ⚠️' : ''}</span>
+          ${returnDateHtml}
         </div>
       </div>
-      <div class="record-actions">
-        ${r.status !== 'returned' ? `<button class="action-btn btn-return" onclick="markReturned('${r.id}')">标记归还</button>` : ''}
-        ${r.status !== 'returned' ? `<button class="action-btn btn-notify" onclick="copyReminder('${r.id}')">提醒还书</button>` : ''}
-        <button class="action-btn btn-delete" onclick="deleteRecord('${r.id}')">删除</button>
-      </div>
+      <div class="record-actions">${actions}</div>
     </div>`;
   }).join('');
 }
@@ -234,6 +273,14 @@ function showPhoto(src) { if (!src) return; document.getElementById('modalImg').
 function markReturned(id) {
   if (!confirm('确认标记为已归还？')) return;
   db.markReturned(id).then(renderRecords).catch(e => alert('操作失败：'+e.message));
+}
+function markNotReceived(id) {
+  if (!confirm('确认标记为「校区未收到」？\n\n家长端会同步显示「已还书但校区未收到」的提醒。')) return;
+  db.markNotReceived(id).then(renderRecords).catch(e => alert('操作失败：'+e.message));
+}
+function markReceived(id) {
+  if (!confirm('确认已收到这本书？\n\n状态将恢复为「已归还」。')) return;
+  db.markReceived(id).then(renderRecords).catch(e => alert('操作失败：'+e.message));
 }
 function deleteRecord(id) {
   if (!confirm('确认删除这条记录？')) return;
