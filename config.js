@@ -1,5 +1,4 @@
 // ===== DK 绘本借阅系统 · Supabase 配置 =====
-// 把下面的占位符替换成你自己的 Supabase 项目信息
-// 位置：Supabase 后台 → Project Settings → API
-const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR-ANON-PUBLIC-KEY';
+// Supabase 后台 → Settings → API Keys 页面获取
+const SUPABASE_URL = 'https://chasxggorijqqmficnh.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_R_ownBYkY4ClztpbfSK2aw_QhmIG5Lt';
