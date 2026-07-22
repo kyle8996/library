@@ -305,11 +305,59 @@ function copyUrl() {
   copyText(borrowUrl);
 }
 
+// ===== 诊断：直接测试 Supabase 连通性 =====
+async function diagnoseConnection() {
+  const diagEl = document.getElementById('recordsList');
+  const results = [];
+  
+  // 测试1：config 是否加载
+  results.push(`USE_SUPABASE=${typeof USE_SUPABASE !== 'undefined' ? USE_SUPABASE : 'undefined'}`);
+  results.push(`URL=${SUPABASE_URL || '未设置'}`);
+  results.push(`KEY前10位=${(SUPABASE_ANON_KEY || '').substring(0, 10)}...`);
+  
+  // 测试2：直接 fetch REST API
+  try {
+    const testUrl = `${SUPABASE_URL}/rest/v1/library_borrowings?select=id&limit=0&apikey=${SUPABASE_ANON_KEY}`;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 10000);
+    const resp = await fetch(testUrl, { 
+      method: 'GET', 
+      headers: { 'apikey': SUPABASE_ANON_KEY },
+      signal: controller.signal 
+    });
+    clearTimeout(timer);
+    results.push(`REST API: HTTP ${resp.status} ${resp.statusText}`);
+    const body = await resp.text();
+    results.push(`响应体: ${body.substring(0, 200)}`);
+  } catch (fetchErr) {
+    results.push(`REST API 失败: ${fetchErr.name} - ${fetchErr.message}`);
+    if (fetchErr.name === 'AbortError') results.push('(请求超时，可能是网络不通或URL错误)');
+  }
+  
+  // 测试3：supabase-js client
+  try {
+    if (_sb) {
+      const { data, error } = await _sb.from('library_borrowings').select('id').limit(0);
+      results.push(`supabase-js: ${error ? 'error: ' + JSON.stringify(error) : 'OK, data=' + JSON.stringify(data)}`);
+    } else {
+      results.push('supabase-js: client 未创建（_sb 为 null）');
+    }
+  } catch (clientErr) {
+    results.push(`supabase-js 异常: ${clientErr.name} - ${clientErr.message}`);
+  }
+  
+  diagEl.innerHTML = `<div class="empty-state" style="text-align:left;max-width:600px;margin:auto;"><div class="icon">🔍</div>
+    <p style="font-weight:700;font-size:15px;margin-bottom:12px;">连接诊断结果</p>
+    <pre style="background:#f5f5f5;padding:12px;border-radius:8px;font-size:12px;overflow-x:auto;line-height:1.8;">${results.join('\n')}</pre>
+    <p style="margin-top:16px;font-size:13px;color:var(--text-light);">请把以上信息截图发回，用于定位问题。</p></div>`;
+}
+
 // ===== 初始化 =====
 if (typeof USE_SUPABASE === 'undefined' || !USE_SUPABASE) {
   document.getElementById('setupTip').style.display = 'block';
 }
 initQR();
+diagnoseConnection();  // 先跑诊断
 loadRecords().then(renderRecords).catch(e => {
   document.getElementById('recordsList').innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>加载失败：${e.message}</p></div>`;
 });
