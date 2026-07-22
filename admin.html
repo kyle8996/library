@@ -288,8 +288,11 @@ function exportData() {
 }
 
 // ===== 二维码 =====
+// 版本号：每次更新借阅页后 +1，二维码链接带上 ?v= 参数，手机扫到新地址不会命中缓存
+const APP_VERSION = '4';
+function borrowBaseUrl() { return location.origin + location.pathname.replace('admin.html', 'borrow.html'); }
 function initQR() {
-  const borrowUrl = location.origin + location.pathname.replace('admin.html', 'borrow.html');
+  const borrowUrl = borrowBaseUrl() + '?v=' + APP_VERSION;
   document.getElementById('qrUrlText').textContent = borrowUrl;
   try {
     new QRCode(document.getElementById('qrcode'), { text: borrowUrl, width: 144, height: 144, correctLevel: QRCode.CorrectLevel.M });
@@ -301,8 +304,7 @@ function downloadQR() {
   const a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = 'DK绘本借阅二维码.png'; a.click();
 }
 function copyUrl() {
-  const borrowUrl = location.origin + location.pathname.replace('admin.html', 'borrow.html');
-  copyText(borrowUrl);
+  copyText(borrowBaseUrl() + '?v=' + APP_VERSION);
 }
 
 // ===== 初始化 =====
