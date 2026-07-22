@@ -126,6 +126,22 @@ const db = {
     }
   },
 
+  // 归档记录（从列表隐藏，但保留数据，累计借阅次数不变）
+  async archiveRecord(id) {
+    if (USE_SUPABASE) {
+      const { error } = await _sb
+        .from('library_borrowings')
+        .update({ status: 'archived' })
+        .eq('id', id);
+      if (error) throw error;
+    } else {
+      const recs = JSON.parse(localStorage.getItem('dk_library_records') || '[]');
+      const r = recs.find(x => x.id === id);
+      if (r) r.status = 'archived';
+      localStorage.setItem('dk_library_records', JSON.stringify(recs));
+    }
+  },
+
   // 删除记录
   async deleteRecord(id) {
     if (USE_SUPABASE) {
