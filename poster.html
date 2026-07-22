@@ -24,7 +24,7 @@
   .print-btn:hover{filter:brightness(1.05);}
 
   .page{
-    width:210mm;margin:14mm auto;background:var(--paper);
+    width:210mm;height:297mm;margin:14mm auto;background:var(--paper);
     border-radius:10px;overflow:hidden;position:relative;
     box-shadow:0 10px 40px rgba(0,0,0,.18);display:flex;flex-direction:column;
   }
@@ -68,16 +68,16 @@
   }
   .note b{color:var(--brand);}
 
-  /* 页脚 */
+  /* 页脚 — 紧贴底部 */
   .footer{
-    margin-top:2mm;background:var(--teal);color:#fff;text-align:center;
-    padding:5mm 10mm;font-size:13pt;font-weight:600;letter-spacing:1px;
+    margin-top:auto;background:var(--teal);color:#fff;text-align:center;
+    padding:6mm 10mm;font-size:13pt;font-weight:600;letter-spacing:1px;
   }
 
   @media print{
     body{background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
     .print-btn{display:none;}
-    .page{margin:0;width:auto;min-height:auto;box-shadow:none;border-radius:0;}
+    .page{margin:0;width:210mm;height:297mm;box-shadow:none;border-radius:0;overflow:hidden;}
     @page{size:A4;margin:0;}
   }
 </style>
