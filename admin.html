@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DK绘本借阅 · 管理后台</title>
+<style>
+  :root {
+    --primary:#FF7B54; --primary-light:#FFB26B; --primary-dark:#E85A2A;
+    --accent:#5EBEC1; --bg:#F5F0EB; --card:#FFFFFF; --text:#4A3728;
+    --text-light:#8B7355; --border:#E8DDD4; --success:#6BCB77;
+    --warning:#FFB347; --danger:#FF6B6B; --radius:14px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,"PingFang SC","Helvetica Neue",sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+  .header { background:linear-gradient(135deg,#2D3A4A,#3D5068); padding:24px 20px; text-align:center; color:#fff; border-radius:0 0 24px 24px; }
+  .header h1 { font-size:20px; }
+  .header p { font-size:13px; opacity:0.8; margin-top:4px; }
+
+  .stats { display:flex; gap:10px; padding:16px; max-width:860px; margin:-16px auto 0; position:relative; z-index:1; flex-wrap:wrap; justify-content:center; }
+  .stat-card { flex:1; min-width:120px; background:var(--card); border-radius:var(--radius); padding:14px 12px; text-align:center; box-shadow:0 2px 10px rgba(0,0,0,0.06); border-bottom:3px solid var(--border); }
+  .stat-card.total { border-color:var(--accent); }
+  .stat-card.borrowed { border-color:var(--warning); }
+  .stat-card.returned { border-color:var(--success); }
+  .stat-card.overdue { border-color:var(--danger); }
+  .stat-num { font-size:26px; font-weight:800; line-height:1.2; }
+  .stat-num.c-cyan { color:var(--accent); } .stat-num.c-orange { color:var(--warning); } .stat-num.c-green { color:var(--success); } .stat-num.c-red { color:var(--danger); }
+  .stat-label { font-size:11px; color:var(--text-light); margin-top:2px; }
+
+  .qr-card { max-width:860px; margin:16px auto 0; background:var(--card); border-radius:var(--radius); padding:18px; box-shadow:0 2px 10px rgba(0,0,0,0.06); display:flex; gap:18px; align-items:center; flex-wrap:wrap; }
+  .qr-card .qr-box { text-align:center; }
+  #qrcode { width:160px; height:160px; border:1px solid var(--border); border-radius:10px; padding:8px; background:#fff; display:flex; align-items:center; justify-content:center; }
+  #qrcode canvas, #qrcode img { max-width:100% !important; height:auto !important; }
+  .qr-info { flex:1; min-width:200px; }
+  .qr-info h3 { font-size:15px; margin-bottom:6px; color:var(--text); }
+  .qr-info p { font-size:12px; color:var(--text-light); line-height:1.6; margin-bottom:10px; word-break:break-all; }
+  .qr-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .qr-actions button { padding:8px 14px; border:none; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer; }
+  .btn-dl { background:var(--primary); color:#fff; } .btn-copy { background:var(--accent); color:#fff; }
+
+  .toolbar { display:flex; gap:8px; padding:16px 16px 0; max-width:860px; margin:0 auto; align-items:center; flex-wrap:wrap; }
+  .toolbar select, .toolbar input { padding:8px 12px; border:1px solid var(--border); border-radius:8px; font-size:13px; outline:none; background:#fff; color:var(--text); }
+  .toolbar select:focus, .toolbar input:focus { border-color:var(--primary); }
+  .toolbar .spacer { flex:1; }
+  .toolbar button { padding:8px 14px; border:none; border-radius:8px; font-size:13px; cursor:pointer; font-weight:600; }
+  .btn-export { background:var(--accent); color:#fff; } .btn-clear { background:var(--danger); color:#fff; } .btn-remind { background:var(--warning); color:#fff; }
+
+  .records { padding:12px 16px 30px; max-width:860px; margin:0 auto; }
+  .record-item { background:var(--card); border-radius:var(--radius); padding:16px; margin-bottom:10px; box-shadow:0 1px 6px rgba(0,0,0,0.04); border-left:4px solid var(--border); display:flex; gap:14px; align-items:flex-start; transition:transform 0.2s; }
+  .record-item:hover { transform:translateX(2px); }
+  .record-item.status-borrowed { border-left-color:var(--warning); }
+  .record-item.status-returned { border-left-color:var(--success); opacity:0.75; }
+  .record-item.status-overdue { border-left-color:var(--danger); background:#FFF5F5; }
+  .record-photo { width:64px; height:84px; min-width:64px; border-radius:8px; object-fit:cover; border:1px solid var(--border); background:#f5f5f5; }
+  .record-info { flex:1; min-width:0; }
+  .record-name { font-size:15px; font-weight:700; }
+  .record-meta { font-size:12px; color:var(--text-light); margin-top:4px; line-height:1.7; }
+  .record-meta span { margin-right:12px; }
+  .record-dates { display:flex; gap:12px; margin-top:6px; font-size:12px; flex-wrap:wrap; }
+  .date-badge { padding:3px 10px; border-radius:12px; font-weight:600; font-size:11px; }
+  .date-borrow { background:#FFF3E0; color:#E65100; } .date-due { background:#E8F5E9; color:#2E7D32; } .date-due.overdue { background:#FFEBEE; color:#C62828; }
+  .record-actions { display:flex; flex-direction:column; gap:6px; }
+  .action-btn { padding:6px 12px; border:none; border-radius:8px; font-size:12px; cursor:pointer; font-weight:600; white-space:nowrap; }
+  .btn-return { background:var(--success); color:#fff; } .btn-delete { background:#FFE0E0; color:var(--danger); } .btn-notify { background:var(--warning); color:#fff; }
+  .btn-return:hover, .btn-notify:hover { opacity:0.85; } .btn-delete:hover { background:var(--danger); color:#fff; }
+
+  .empty-state { text-align:center; padding:60px 20px; color:var(--text-light); }
+  .empty-state .icon { font-size:48px; margin-bottom:12px; }
+
+  .photo-modal { display:none; position:fixed; top:0;left:0;width:100%;height:100%; background:rgba(0,0,0,0.8); z-index:200; align-items:center; justify-content:center; }
+  .photo-modal.show { display:flex; }
+  .photo-modal img { max-width:90%; max-height:90%; border-radius:12px; }
+  .photo-modal .close-btn { position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.2); color:#fff; border:none; width:40px; height:40px; border-radius:50%; font-size:20px; cursor:pointer; }
+
+  .toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(20px); background:rgba(45,58,74,0.95); color:#fff; padding:12px 24px; border-radius:24px; font-size:14px; opacity:0; pointer-events:none; transition:all 0.3s; z-index:300; }
+  .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  .setup-tip { max-width:860px; margin:16px auto; background:#FFF8F0; border:1px solid var(--warning); border-radius:var(--radius); padding:14px 18px; font-size:13px; color:var(--text); line-height:1.7; }
+  .setup-tip code { background:#fff; padding:2px 6px; border-radius:4px; border:1px solid var(--border); }
+
+  @media(max-width:500px) { .record-item { flex-direction:column; } .record-photo { width:100%; height:200px; } .record-actions { flex-direction:row; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📚 DK 绘本借阅管理</h1>
+  <p>借阅记录总览 · 数据云端同步 · 还书提醒</p>
+</div>
+
+<div class="stats" id="statsBar">
+  <div class="stat-card total"><div class="stat-num c-cyan" id="statTotal">0</div><div class="stat-label">总记录</div></div>
+  <div class="stat-card borrowed"><div class="stat-num c-orange" id="statBorrowed">0</div><div class="stat-label">借出中</div></div>
+  <div class="stat-card returned"><div class="stat-num c-green" id="statReturned">0</div><div class="stat-label">已归还</div></div>
+  <div class="stat-card overdue"><div class="stat-num c-red" id="statOverdue">0</div><div class="stat-label">已逾期</div></div>
+</div>
+
+<!-- 二维码卡片 -->
+<div class="qr-card">
+  <div class="qr-box"><div id="qrcode"></div></div>
+  <div class="qr-info">
+    <h3>📱 家长借阅二维码</h3>
+    <p id="qrUrlText">生成中...</p>
+    <div class="qr-actions">
+      <button class="btn-dl" onclick="downloadQR()">⬇️ 下载二维码</button>
+      <button class="btn-copy" onclick="copyUrl()">📋 复制链接</button>
+    </div>
+    <p style="margin-top:10px; font-size:11px;">打印出来贴在绘本角或前台，家长扫码即可登记借阅。</p>
+  </div>
+</div>
+
+<div id="setupTip" class="setup-tip" style="display:none;">
+  ⚙️ 当前为<strong>本地预览模式</strong>（未连接 Supabase）。如需多设备云端同步，请：<br>
+  1. 在 <code>config.js</code> 填入你的 <code>SUPABASE_URL</code> 与 <code>SUPABASE_ANON_KEY</code><br>
+  2. 在 Supabase SQL Editor 执行 <code>supabase-setup.sql</code>
+</div>
+
+<div class="toolbar">
+  <select id="filterStatus" onchange="renderRecords()">
+    <option value="">全部状态</option>
+    <option value="borrowed">借出中</option>
+    <option value="returned">已归还</option>
+    <option value="overdue">已逾期</option>
+  </select>
+  <select id="filterClass" onchange="renderRecords()"><option value="">全部班级</option></select>
+  <input type="text" id="searchName" placeholder="搜索姓名..." oninput="renderRecords()">
+  <span class="spacer"></span>
+  <button class="btn-remind" onclick="copyAllReminders()">📢 复制全部逾期提醒</button>
+  <button class="btn-export" onclick="exportData()">📥 导出</button>
+  <button class="btn-clear" onclick="clearAllData()">🗑️ 清空</button>
+</div>
+
+<div class="records" id="recordsList"></div>
+
+<div class="photo-modal" id="photoModal" onclick="this.classList.remove('show')">
+  <button class="close-btn" onclick="event.stopPropagation();this.parentElement.classList.remove('show')">✕</button>
+  <img id="modalImg" src="">
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="config.js"></script>
+<script src="db.js"></script>
+<script>
+let records = [];
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2200);
+}
+
+function loadRecords() {
+  return db.getAll().then(r => { records = r || []; });
+}
+
+function isOverdue(rec) {
+  if (rec.status !== 'borrowed') return false;
+  return new Date(rec.due_date) < new Date(new Date().setHours(0,0,0,0));
+}
+
+function updateStats() {
+  const total = records.length;
+  const returned = records.filter(r => r.status === 'returned').length;
+  let overdue = 0;
+  records.forEach(r => { if (r.status === 'borrowed' && isOverdue(r)) { overdue++; r.status = 'overdue'; } });
+  const borrowed = total - returned - overdue;
+  document.getElementById('statTotal').textContent = total;
+  document.getElementById('statBorrowed').textContent = borrowed;
+  document.getElementById('statReturned').textContent = returned;
+  document.getElementById('statOverdue').textContent = overdue;
+}
+
+function populateClassFilter() {
+  const classes = [...new Set(records.map(r => r.class_name).filter(Boolean))].sort();
+  const sel = document.getElementById('filterClass');
+  sel.innerHTML = '<option value="">全部班级</option>';
+  classes.forEach(c => { const o = document.createElement('option'); o.value = c; o.textContent = c; sel.appendChild(o); });
+}
+
+function renderRecords() {
+  updateStats();
+  populateClassFilter();
+  const sf = document.getElementById('filterStatus').value;
+  const cf = document.getElementById('filterClass').value;
+  const q = document.getElementById('searchName').value.trim().toLowerCase();
+  let filtered = records.filter(r => {
+    if (sf && r.status !== sf) return false;
+    if (cf && r.class_name !== cf) return false;
+    if (q && !(r.child_name || '').toLowerCase().includes(q)) return false;
+    return true;
+  });
+  filtered.sort((a,b) => {
+    if (a.status === 'overdue' && b.status !== 'overdue') return -1;
+    if (b.status === 'overdue' && a.status !== 'overdue') return 1;
+    return new Date(b.created_at || b.borrow_date) - new Date(a.created_at || a.borrow_date);
+  });
+  const container = document.getElementById('recordsList');
+  if (filtered.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="icon">📭</div><p>${sf||cf||q ? '没有匹配的记录' : '暂无借阅记录'}</p><p style="font-size:13px;margin-top:4px;">家长扫码登记后会在此显示</p></div>`;
+    return;
+  }
+  container.innerHTML = filtered.map(r => {
+    const overdue = isOverdue(r) || r.status === 'overdue';
+    const sc = overdue ? 'status-overdue' : (r.status === 'returned' ? 'status-returned' : 'status-borrowed');
+    const st = overdue ? '⏰ 已逾期' : (r.status === 'returned' ? '✅ 已归还' : '📖 借出中');
+    const dc = overdue ? 'date-due overdue' : 'date-due';
+    return `
+    <div class="record-item ${sc}" data-id="${r.id}">
+      <img class="record-photo" src="${r.book_photo || ''}" alt="封面" onerror="this.style.display='none'" onclick="event.stopPropagation();showPhoto('${r.book_photo || ''}')">
+      <div class="record-info">
+        <div class="record-name">${escapeHtml(r.child_name)} <small style="font-weight:400;font-size:12px;color:var(--text-light)">${st}</small></div>
+        <div class="record-meta"><span>📚 ${escapeHtml(r.class_name||'')}</span><span>👨‍🏫 ${escapeHtml(r.teacher_name||'')}</span></div>
+        <div class="record-dates">
+          <span class="date-badge date-borrow">借出：${r.borrow_date}</span>
+          <span class="date-badge ${dc}">应还：${r.due_date}${overdue ? ' ⚠️' : ''}</span>
+        </div>
+      </div>
+      <div class="record-actions">
+        ${r.status !== 'returned' ? `<button class="action-btn btn-return" onclick="markReturned('${r.id}')">标记归还</button>` : ''}
+        ${r.status !== 'returned' ? `<button class="action-btn btn-notify" onclick="copyReminder('${r.id}')">提醒还书</button>` : ''}
+        <button class="action-btn btn-delete" onclick="deleteRecord('${r.id}')">删除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function escapeHtml(str) { const d = document.createElement('div'); d.textContent = str; return d.innerHTML; }
+function showPhoto(src) { if (!src) return; document.getElementById('modalImg').src = src; document.getElementById('photoModal').classList.add('show'); }
+
+function markReturned(id) {
+  if (!confirm('确认标记为已归还？')) return;
+  db.markReturned(id).then(renderRecords).catch(e => alert('操作失败：'+e.message));
+}
+function deleteRecord(id) {
+  if (!confirm('确认删除这条记录？')) return;
+  db.deleteRecord(id).then(renderRecords).catch(e => alert('操作失败：'+e.message));
+}
+function clearAllData() {
+  if (!confirm('确定清空所有记录？不可恢复！') || !confirm('再次确认：真的全部清空？')) return;
+  if (records.length === 0) { alert('没有数据'); return; }
+  const tasks = records.map(r => db.deleteRecord(r.id));
+  Promise.all(tasks).then(() => { renderRecords(); showToast('已清空'); }).catch(e => alert('失败：'+e.message));
+}
+
+// ===== 还书提醒话术 =====
+function buildReminder(r) {
+  const overdue = isOverdue(r);
+  const prefix = overdue ? '【逾期提醒】' : '【还书提醒】';
+  return `${prefix}${r.child_name}家长您好，您在DK邻里少儿英语借阅的绘本（班级：${r.class_name||'—'}，带班老师：${r.teacher_name||'—'}）应于 ${r.due_date} 前归还${overdue ? '，目前已逾期，请您尽快带孩子归还，谢谢配合！❤️' : '，请记得按时归还哦，谢谢！❤️'}`;
+}
+function copyReminder(id) {
+  const r = records.find(x => x.id === id); if (!r) return;
+  copyText(buildReminder(r));
+}
+function copyAllReminders() {
+  const overdue = records.filter(r => (r.status === 'borrowed' || r.status === 'overdue') && isOverdue(r));
+  if (overdue.length === 0) { showToast('当前没有逾期记录 🎉'); return; }
+  const text = overdue.map(buildReminder).join('\n\n');
+  copyText(text);
+}
+function copyText(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(() => showToast('提醒话术已复制，去微信粘贴发送即可')).catch(() => fallbackCopy(text));
+  } else { fallbackCopy(text); }
+}
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+  try { document.execCommand('copy'); showToast('提醒话术已复制'); } catch(e) { alert(text); }
+  document.body.removeChild(ta);
+}
+
+// ===== 导出 CSV =====
+function exportData() {
+  if (records.length === 0) { alert('没有数据'); return; }
+  const headers = ['孩子姓名','班级','带班老师','借阅日期','应还日期','状态','登记时间'];
+  const rows = records.map(r => [r.child_name, r.class_name, r.teacher_name, r.borrow_date, r.due_date,
+    r.status === 'returned' ? '已归还' : (isOverdue(r) ? '已逾期' : '借出中'), r.created_at || '']);
+  let csv = '﻿' + headers.join(',') + '\n';
+  rows.forEach(row => { csv += row.map(c => `"${String(c).replace(/"/g,'""')}"`).join(',') + '\n'; });
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `DK绘本借阅记录_${new Date().toLocaleDateString('zh-CN').replace(/\//g,'-')}.csv`; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ===== 二维码 =====
+function initQR() {
+  const borrowUrl = location.origin + location.pathname.replace('admin.html', 'borrow.html');
+  document.getElementById('qrUrlText').textContent = borrowUrl;
+  try {
+    new QRCode(document.getElementById('qrcode'), { text: borrowUrl, width: 144, height: 144, correctLevel: QRCode.CorrectLevel.M });
+  } catch(e) { document.getElementById('qrcode').innerHTML = '<span style="font-size:12px;color:#999">二维码生成失败</span>'; }
+}
+function downloadQR() {
+  const canvas = document.querySelector('#qrcode canvas');
+  if (!canvas) { alert('请先生成二维码'); return; }
+  const a = document.createElement('a'); a.href = canvas.toDataURL('image/png'); a.download = 'DK绘本借阅二维码.png'; a.click();
+}
+function copyUrl() {
+  const borrowUrl = location.origin + location.pathname.replace('admin.html', 'borrow.html');
+  copyText(borrowUrl);
+}
+
+// ===== 初始化 =====
+if (typeof USE_SUPABASE === 'undefined' || !USE_SUPABASE) {
+  document.getElementById('setupTip').style.display = 'block';
+}
+initQR();
+loadRecords().then(renderRecords).catch(e => {
+  document.getElementById('recordsList').innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>加载失败：${e.message}</p></div>`;
+});
+setInterval(() => { loadRecords().then(renderRecords); }, 60000);
+</script>
+
+</body>
+</html>
