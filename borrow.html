@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>DK邻里少儿英语 · 绘本借阅登记</title>
+<style>
+  :root {
+    --primary: #FF7B54;
+    --primary-light: #FFB26B;
+    --primary-dark: #E85A2A;
+    --accent: #5EBEC1;
+    --bg: #FFF8F3;
+    --card: #FFFFFF;
+    --text: #4A3728;
+    --text-light: #8B7355;
+    --border: #FFE0CC;
+    --success: #6BCB77;
+    --danger: #FF6B6B;
+    --warning: #FFB347;
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,"PingFang SC","Helvetica Neue",sans-serif; background:var(--bg); color:var(--text); min-height:100vh; padding-bottom:40px; }
+
+  .header { background:linear-gradient(135deg,var(--primary),var(--primary-light)); padding:28px 20px 24px; text-align:center; position:relative; overflow:hidden; border-radius:0 0 28px 28px; box-shadow:0 4px 20px var(--shadow, rgba(255,123,84,0.15)); }
+  .header::before { content:''; position:absolute; top:-30px; right:-30px; width:120px; height:120px; background:rgba(255,255,255,0.12); border-radius:50%; }
+  .header::after { content:'📚'; position:absolute; top:18px; left:22px; font-size:28px; }
+  .header h1 { color:#fff; font-size:22px; font-weight:700; letter-spacing:1px; text-shadow:0 2px 4px rgba(0,0,0,0.1); }
+  .header p { color:rgba(255,255,255,0.9); font-size:13px; margin-top:6px; }
+  .header-badge { display:inline-block; background:rgba(255,255,255,0.25); color:#fff; padding:4px 14px; border-radius:20px; font-size:12px; margin-top:10px; backdrop-filter:blur(4px); }
+
+  .container { padding:20px 16px; max-width:480px; margin:0 auto; }
+
+  /* Step indicator */
+  .step-indicator { display:flex; align-items:center; justify-content:center; gap:8px; margin-bottom:18px; }
+  .step-dot { display:flex; align-items:center; gap:6px; font-size:13px; color:var(--text-light); font-weight:600; }
+  .step-dot .num { width:24px; height:24px; border-radius:50%; background:#fff; border:2px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:13px; color:var(--text-light); }
+  .step-dot.active .num { background:var(--primary); border-color:var(--primary); color:#fff; }
+  .step-dot.active { color:var(--primary-dark); }
+  .step-line { width:30px; height:2px; background:var(--border); }
+
+  .card { background:var(--card); border-radius:var(--radius); padding:20px; margin-bottom:16px; box-shadow:0 2px 12px rgba(0,0,0,0.05); border:1px solid var(--border); }
+  .card-title { display:flex; align-items:center; gap:8px; font-size:16px; font-weight:600; color:var(--text); margin-bottom:16px; padding-bottom:12px; border-bottom:2px dashed var(--border); }
+  .card-title .icon { font-size:20px; }
+
+  .form-group { margin-bottom:16px; }
+  .form-label { display:block; font-size:14px; font-weight:600; color:var(--text); margin-bottom:6px; }
+  .form-label .required { color:var(--primary-dark); margin-left:2px; }
+  .form-input { width:100%; padding:12px 14px; border:2px solid var(--border); border-radius:var(--radius-sm); font-size:15px; color:var(--text); background:#fff; transition:border-color 0.3s, box-shadow 0.3s; outline:none; }
+  .form-input:focus { border-color:var(--primary); box-shadow:0 0 0 4px rgba(255,123,84,0.12); }
+  .form-input::placeholder { color:#C4B5A8; }
+
+  /* Photo */
+  .photo-upload { border:2px dashed var(--border); border-radius:var(--radius); padding:24px 16px; text-align:center; cursor:pointer; transition:all 0.3s; position:relative; overflow:hidden; background:linear-gradient(135deg,#FFF9F5,#FFF3EA); }
+  .photo-upload:hover { border-color:var(--primary); background:linear-gradient(135deg,#FFF5EE,#FFECD8); }
+  .photo-upload.has-image { border-style:solid; border-color:var(--success); padding:8px; }
+  .photo-upload input { display:none; }
+  .photo-placeholder { color:var(--text-light); font-size:14px; }
+  .photo-placeholder .upload-icon { font-size:40px; display:block; margin-bottom:8px; }
+  .photo-preview { max-width:100%; max-height:260px; border-radius:var(--radius-sm); display:block; margin:0 auto; object-fit:contain; }
+  .photo-hint { font-size:11px; color:var(--text-light); margin-top:6px; }
+  .photo-change { display:none; position:absolute; bottom:8px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,0.6); color:#fff; padding:4px 14px; border-radius:20px; font-size:12px; }
+  .photo-upload.has-image .photo-placeholder { display:none; }
+  .photo-upload.has-image .photo-change { display:block; }
+
+  .date-row { display:flex; gap:10px; }
+  .date-row .form-group { flex:1; }
+
+  /* Commitments */
+  .commitments { display:flex; flex-direction:column; gap:10px; }
+  .commit-item { display:flex; align-items:flex-start; gap:10px; padding:12px 14px; background:#FFFBF7; border:1px solid var(--border); border-radius:var(--radius-sm); cursor:pointer; transition:all 0.2s; }
+  .commit-item:hover { background:#FFF5EF; border-color:var(--primary-light); }
+  .commit-item.checked { background:#FFF0E8; border-color:var(--primary); }
+  .commit-checkbox { width:22px; height:22px; min-width:22px; border:2px solid var(--border); border-radius:6px; display:flex; align-items:center; justify-content:center; transition:all 0.2s; margin-top:1px; }
+  .commit-item.checked .commit-checkbox { background:var(--primary); border-color:var(--primary); }
+  .commit-checkbox::after { content:'✓'; color:#fff; font-size:14px; font-weight:bold; opacity:0; }
+  .commit-item.checked .commit-checkbox::after { opacity:1; }
+  .commit-text { font-size:14px; line-height:1.5; color:var(--text); }
+
+  /* Buttons */
+  .btn { width:100%; padding:15px; border:none; border-radius:var(--radius); font-size:16px; font-weight:700; cursor:pointer; transition:all 0.3s; letter-spacing:1px; }
+  .btn-primary { background:linear-gradient(135deg,var(--primary),var(--primary-dark)); color:#fff; box-shadow:0 4px 16px rgba(255,123,84,0.15); }
+  .btn-primary:hover { transform:translateY(-2px); }
+  .btn-primary:disabled { opacity:0.5; cursor:not-allowed; transform:none; }
+  .btn-ghost { background:#fff; color:var(--primary-dark); border:2px solid var(--border); margin-top:10px; box-shadow:none; }
+  .btn-ghost:hover { background:#FFF5EF; }
+
+  /* Warning */
+  .warning-box { background:#FFF5F5; border:2px solid var(--danger); border-radius:var(--radius); padding:16px; margin-bottom:16px; }
+  .warning-box .w-title { color:var(--danger); font-weight:700; font-size:15px; margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+  .warning-box p { font-size:13px; color:var(--text); line-height:1.6; }
+
+  /* Current borrowed list */
+  .current-list { margin-bottom:16px; }
+  .current-list .cl-title { font-size:14px; font-weight:700; color:var(--primary-dark); margin-bottom:10px; display:flex; align-items:center; gap:6px; }
+  .current-item { display:flex; gap:10px; align-items:center; background:#FFFBF7; border:1px solid var(--border); border-radius:var(--radius-sm); padding:10px; margin-bottom:8px; }
+  .current-item img { width:42px; height:56px; min-width:42px; border-radius:6px; object-fit:cover; background:#f0f0f0; }
+  .current-item .ci-info { font-size:12px; color:var(--text-light); line-height:1.6; }
+  .current-item .ci-info b { color:var(--text); font-size:13px; }
+  .badge-overdue { background:#FFEBEE; color:var(--danger); padding:1px 8px; border-radius:10px; font-size:11px; font-weight:600; margin-left:6px; }
+  .empty-hint { font-size:13px; color:var(--success); background:#F0FBF1; border:1px solid #C8EBCB; border-radius:var(--radius-sm); padding:10px 14px; }
+
+  .footer-note { text-align:center; font-size:12px; color:var(--text-light); padding:16px; line-height:1.8; }
+  .footer-note .brand { color:var(--primary); font-weight:600; }
+
+  /* Success overlay */
+  .overlay { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:100; align-items:center; justify-content:center; }
+  .overlay.show { display:flex; }
+  .success-modal { background:#fff; border-radius:24px; padding:32px 28px; text-align:center; max-width:340px; width:90%; animation:popIn 0.4s ease; }
+  @keyframes popIn { 0%{transform:scale(0.8);opacity:0;} 100%{transform:scale(1);opacity:1;} }
+  .success-icon { font-size:56px; margin-bottom:12px; }
+  .success-modal h2 { color:var(--text); font-size:20px; margin-bottom:8px; }
+  .success-modal p { color:var(--text-light); font-size:14px; line-height:1.6; }
+  .success-modal .due-info { background:var(--bg); border-radius:var(--radius-sm); padding:12px 16px; margin:16px 0; font-size:13px; }
+  .success-modal .due-info strong { color:var(--primary-dark); }
+  .close-btn { background:var(--primary); color:#fff; border:none; padding:10px 32px; border-radius:20px; font-size:15px; font-weight:600; cursor:pointer; margin-top:8px; }
+
+  #loadingMask { display:none; position:fixed; inset:0; background:rgba(255,255,255,0.6); z-index:90; align-items:center; justify-content:center; }
+  #loadingMask.show { display:flex; }
+  .spinner { width:36px; height:36px; border:4px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin 0.8s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📖 绘本借阅登记</h1>
+  <p>DK邻里少儿英语 · 让阅读成为习惯</p>
+  <span class="header-badge">🌟 爱读书的孩子更优秀</span>
+</div>
+
+<div class="container">
+
+  <!-- 步骤指示器 -->
+  <div class="step-indicator">
+    <div class="step-dot active" id="stepIndicator1"><span class="num">1</span> 借阅人信息</div>
+    <div class="step-line"></div>
+    <div class="step-dot" id="stepIndicator2"><span class="num">2</span> 图书登记</div>
+  </div>
+
+  <!-- ===== 第一步：借阅人信息 ===== -->
+  <div id="step1">
+    <div class="card">
+      <div class="card-title"><span class="icon">👤</span> 借阅人信息</div>
+      <div class="form-group">
+        <label class="form-label">孩子中文名 <span class="required">*</span></label>
+        <input type="text" class="form-input" id="childName" placeholder="请输入孩子的中文姓名" maxlength="20">
+      </div>
+      <div class="form-group">
+        <label class="form-label">所在班级 <span class="required">*</span></label>
+        <input type="text" class="form-input" id="className" placeholder="请输入所在班级" maxlength="30">
+      </div>
+      <div class="form-group">
+        <label class="form-label">带班老师 <span class="required">*</span></label>
+        <input type="text" class="form-input" id="teacherName" placeholder="请输入带班老师姓名" maxlength="20">
+      </div>
+    </div>
+
+    <button class="btn btn-primary" onclick="goStep2()">下一步 →</button>
+
+    <div id="limitWarning"></div>
+  </div>
+
+  <!-- ===== 第二步：图书登记 ===== -->
+  <div id="step2" style="display:none;">
+    <div class="card">
+      <div class="card-title"><span class="icon">📚</span> 图书登记</div>
+
+      <!-- 当前未还书籍 -->
+      <div class="current-list">
+        <div class="cl-title">📌 当前借阅中（未还）</div>
+        <div id="unreturnedList"></div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">图书封面拍照 <span class="required">*</span></label>
+        <div class="photo-upload" id="photoUpload" onclick="document.getElementById('bookPhoto').click()">
+          <input type="file" id="bookPhoto" accept="image/*" capture="environment" onchange="handlePhoto(this)">
+          <div class="photo-placeholder">
+            <span class="upload-icon">📷</span>
+            <div>点击拍摄/上传图书封面</div>
+            <div class="photo-hint">请确保封面清晰可见，光线充足</div>
+          </div>
+          <img class="photo-preview" id="photoPreview" style="display:none">
+          <div class="photo-change">点击重新拍摄</div>
+        </div>
+      </div>
+
+      <div class="date-row">
+        <div class="form-group">
+          <label class="form-label">借阅日期 <span class="required">*</span></label>
+          <input type="date" class="form-input" id="borrowDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">应还日期</label>
+          <input type="date" class="form-input" id="dueDate" readonly style="background:#F5F0EB; color:var(--primary-dark); font-weight:600;">
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">💝</span> 爱书承诺 <small style="font-weight:400;color:var(--text-light);font-size:12px;">（全部勾选后可提交）</small></div>
+      <div class="commitments" id="commitments">
+        <div class="commit-item" data-index="0" onclick="toggleCommit(this)"><div class="commit-checkbox"></div><div class="commit-text">我承诺爱护图书，保持书籍清洁、完好</div></div>
+        <div class="commit-item" data-index="1" onclick="toggleCommit(this)"><div class="commit-checkbox"></div><div class="commit-text">我承诺不在书上涂画、折页</div></div>
+        <div class="commit-item" data-index="2" onclick="toggleCommit(this)"><div class="commit-checkbox"></div><div class="commit-text">我理解如书籍发生严重损坏或丢失，需进行相应赔偿</div></div>
+        <div class="commit-item" data-index="3" onclick="toggleCommit(this)"><div class="commit-checkbox"></div><div class="commit-text">我将在阅读完成后，主动归还</div></div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="submitBtn" onclick="handleSubmit()">确认登记借阅 ✨</button>
+    <button class="btn btn-ghost" onclick="backToStep1()">← 返回上一步</button>
+  </div>
+
+  <div class="footer-note">
+    📌 每人同时最多借阅 <strong style="color:var(--primary)">3</strong> 本，借阅期限 <strong style="color:var(--primary)">7天</strong><br>
+    如需续借请联系带班老师 · 感谢配合 ❤️<br><br>
+    <span class="brand">DK 邻里少儿英语 Discovery Kingdom</span>
+  </div>
+</div>
+
+<!-- 成功弹窗 -->
+<div class="overlay" id="successOverlay">
+  <div class="success-modal">
+    <div class="success-icon">🎉</div>
+    <h2>借阅登记成功！</h2>
+    <p>已成功记录绘本借阅信息</p>
+    <div class="due-info">请于 <strong id="modalDueDate"></strong> 前归还图书<br><small style="color:var(--text-light)">记得按时归还哦~</small></div>
+    <button class="close-btn" onclick="closeModal()">我知道了</button>
+  </div>
+</div>
+
+<div id="loadingMask"><div class="spinner"></div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="db.js"></script>
+<script>
+// ===== 初始化 =====
+const today = new Date().toISOString().split('T')[0];
+document.getElementById('borrowDate').value = today;
+const dueDateObj = new Date(); dueDateObj.setDate(dueDateObj.getDate() + 7);
+document.getElementById('dueDate').value = dueDateObj.toISOString().split('T')[0];
+
+document.getElementById('borrowDate').addEventListener('change', function() {
+  if (this.value) {
+    const d = new Date(this.value); d.setDate(d.getDate() + 7);
+    document.getElementById('dueDate').value = d.toISOString().split('T')[0];
+  }
+});
+
+let currentChild = null;
+let photoData = null;
+
+// ===== 照片处理 =====
+function handlePhoto(input) {
+  if (input.files && input.files[0]) {
+    const file = input.files[0];
+    if (file.size > 10 * 1024 * 1024) { alert('图片大小不能超过10MB'); return; }
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      photoData = e.target.result;
+      const preview = document.getElementById('photoPreview');
+      preview.src = photoData; preview.style.display = 'block';
+      document.getElementById('photoUpload').classList.add('has-image');
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function toggleCommit(el) { el.classList.toggle('checked'); }
+
+// ===== 第一步 → 第二步 =====
+async function goStep2() {
+  const childName = document.getElementById('childName').value.trim();
+  const className = document.getElementById('className').value.trim();
+  const teacherName = document.getElementById('teacherName').value.trim();
+  if (!childName) { alert('请填写孩子中文名'); return; }
+  if (!className) { alert('请填写所在班级'); return; }
+  if (!teacherName) { alert('请填写带班老师'); return; }
+
+  showLoading(true);
+  try {
+    const list = await db.getUnreturned(childName);
+    if (list.length >= MAX_BORROW) {
+      showLimitWarning(list);
+      return;
+    }
+    currentChild = { childName, className, teacherName };
+    document.getElementById('step1').style.display = 'none';
+    document.getElementById('step2').style.display = 'block';
+    document.getElementById('stepIndicator2').classList.add('active');
+    renderUnreturned(list);
+    window.scrollTo(0, 0);
+  } catch (err) {
+    alert('查询失败：' + err.message);
+  } finally {
+    showLoading(false);
+  }
+}
+
+function backToStep1() {
+  document.getElementById('step2').style.display = 'none';
+  document.getElementById('step1').style.display = 'block';
+  document.getElementById('stepIndicator2').classList.remove('active');
+  window.scrollTo(0, 0);
+}
+
+function showLimitWarning(list) {
+  const box = document.getElementById('limitWarning');
+  const items = list.map(b => `
+    <div class="current-item">
+      <img src="${b.book_photo || ''}" onerror="this.style.display='none'">
+      <div class="ci-info"><b>${escapeHtml(b.child_name)}</b> 的绘本<br>借出：${b.borrow_date} · 应还：${b.due_date}${isOverdue(b) ? '<span class="badge-overdue">已逾期</span>' : ''}</div>
+    </div>`).join('');
+  box.innerHTML = `
+    <div class="warning-box">
+      <div class="w-title">⚠️ 暂时无法借阅</div>
+      <p>您目前有 <b>${list.length}</b> 本绘本尚未归还（每人最多同时借阅 ${MAX_BORROW} 本）。<br>请先归还以下图书后，再扫码借阅新绘本：</p>
+      ${items}
+    </div>`;
+  box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function renderUnreturned(list) {
+  const el = document.getElementById('unreturnedList');
+  if (!list || list.length === 0) {
+    el.innerHTML = '<div class="empty-hint">🎉 当前没有未还书籍，可以放心借阅啦！</div>';
+    return;
+  }
+  el.innerHTML = list.map(b => `
+    <div class="current-item">
+      <img src="${b.book_photo || ''}" onerror="this.style.display='none'">
+      <div class="ci-info"><b>${escapeHtml(b.child_name)}</b> 的绘本<br>借出：${b.borrow_date} · 应还：${b.due_date}${isOverdue(b) ? '<span class="badge-overdue">已逾期</span>' : ''}</div>
+    </div>`).join('');
+}
+
+function isOverdue(rec) {
+  return new Date(rec.due_date) < new Date(new Date().setHours(0,0,0,0));
+}
+
+// ===== 提交 =====
+function validateForm() {
+  if (!photoData) { alert('请拍摄或上传图书封面照片'); return false; }
+  if (!document.getElementById('borrowDate').value) { alert('请选择借阅日期'); return false; }
+  const commits = document.querySelectorAll('.commit-item');
+  for (const c of commits) {
+    if (!c.classList.contains('checked')) { alert('请勾选全部爱书承诺后再提交'); return false; }
+  }
+  return true;
+}
+
+async function handleSubmit() {
+  if (!validateForm()) return;
+  const btn = document.getElementById('submitBtn');
+  btn.disabled = true; btn.textContent = '提交中...';
+  showLoading(true);
+  try {
+    const photoUrl = await db.uploadPhoto(photoData);
+    const record = {
+      child_name: currentChild.childName,
+      class_name: currentChild.className,
+      teacher_name: currentChild.teacherName,
+      book_photo: photoUrl,
+      borrow_date: document.getElementById('borrowDate').value,
+      due_date: document.getElementById('dueDate').value,
+      status: 'borrowed',
+      commitments: Array.from(document.querySelectorAll('.commit-item')).map(c => ({
+        text: c.querySelector('.commit-text').textContent, checked: c.classList.contains('checked')
+      }))
+    };
+    await db.insert(record);
+    document.getElementById('modalDueDate').textContent = record.due_date;
+    document.getElementById('successOverlay').classList.add('show');
+    resetAll();
+  } catch (err) {
+    console.error(err); alert('提交失败：' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = '确认登记借阅 ✨'; showLoading(false);
+  }
+}
+
+function resetAll() {
+  document.getElementById('childName').value = '';
+  document.getElementById('className').value = '';
+  document.getElementById('teacherName').value = '';
+  const dd = new Date(); dd.setDate(dd.getDate() + 7);
+  document.getElementById('borrowDate').value = today;
+  document.getElementById('dueDate').value = dd.toISOString().split('T')[0];
+  photoData = null;
+  const preview = document.getElementById('photoPreview');
+  preview.src = ''; preview.style.display = 'none';
+  document.getElementById('photoUpload').classList.remove('has-image');
+  document.getElementById('bookPhoto').value = '';
+  document.querySelectorAll('.commit-item').forEach(c => c.classList.remove('checked'));
+  document.getElementById('unreturnedList').innerHTML = '';
+  document.getElementById('limitWarning').innerHTML = '';
+  currentChild = null;
+}
+
+function closeModal() {
+  document.getElementById('successOverlay').classList.remove('show');
+  backToStep1();
+}
+
+function showLoading(on) { document.getElementById('loadingMask').classList.toggle('show', on); }
+
+function escapeHtml(str) {
+  const div = document.createElement('div'); div.textContent = str; return div.innerHTML;
+}
+</script>
+
+</body>
+</html>
