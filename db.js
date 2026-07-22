@@ -11,6 +11,22 @@ if (USE_SUPABASE) {
 const MAX_BORROW = 3; // 每人同时最多借阅未还数量
 
 const db = {
+  // 查询某孩子累计借阅总次数（所有状态都算，从使用系统开始累计）
+  async getTotalBorrowCount(childName) {
+    const name = (childName || '').trim();
+    if (USE_SUPABASE) {
+      const { count, error } = await _sb
+        .from('library_borrowings')
+        .select('*', { count: 'exact', head: true })
+        .ilike('child_name', name);
+      if (error) throw error;
+      return count || 0;
+    } else {
+      const recs = JSON.parse(localStorage.getItem('dk_library_records') || '[]');
+      return recs.filter(r => (r.child_name || '').trim() === name).length;
+    }
+  },
+
   // 查询某孩子「借出中（未还）」或「校区未收到」的记录
   async getUnreturned(childName) {
     const name = (childName || '').trim();
