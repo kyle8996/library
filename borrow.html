@@ -106,6 +106,8 @@
   .item-not-received { border:2px solid #E91E63 !important; background:#FFF0F6 !important; animation:pulseItem 1.8s infinite; }
   @keyframes pulseItem { 0%,100%{box-shadow:0 0 0 0 rgba(233,30,99,0.15);} 50%{box-shadow:0 0 0 6px rgba(233,30,99,0);} }
   .nr-badge { display:inline-block; background:linear-gradient(135deg,#E91E63,#F06292); color:#fff; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:700; margin-left:4px; }
+  .borrow-count-tip { background:linear-gradient(135deg,#FFF8E1,#FFECB3); border:1.5px solid #FFD54F; border-radius:12px; padding:10px 16px; margin-bottom:14px; text-align:center; font-size:14px; color:#E65100; font-weight:600; line-height:1.6; }
+  .borrow-count-tip .count-num { color:#E65100; font-size:20px; font-weight:800; margin:0 3px; }
 
   .footer-note { text-align:center; font-size:12px; color:var(--text-light); padding:16px; line-height:1.8; }
   .footer-note .brand { color:var(--primary); font-weight:600; }
@@ -151,7 +153,7 @@
       <div class="card-title"><span class="icon">👤</span> 借阅人信息</div>
       <div class="form-group">
         <label class="form-label">孩子中文名 <span class="required">*</span></label>
-        <input type="text" class="form-input" id="childName" placeholder="请输入孩子的中文姓名" maxlength="20">
+        <input type="text" class="form-input" id="childName" placeholder="请填写孩子全名哦" maxlength="20">
       </div>
       <div class="form-group">
         <label class="form-label">所在班级 <span class="required">*</span></label>
@@ -172,6 +174,7 @@
   <div id="step2" style="display:none;">
     <div class="card">
       <div class="card-title"><span class="icon">📚</span> 图书登记</div>
+      <div id="borrowCountTip" class="borrow-count-tip"></div>
 
       <!-- 当前未还书籍 -->
       <div class="current-list">
@@ -329,6 +332,18 @@ async function goStep2() {
     document.getElementById('step2').style.display = 'block';
     document.getElementById('stepIndicator2').classList.add('active');
     renderUnreturned(list);
+    // 显示累计借阅次数
+    try {
+      const totalCount = await db.getTotalBorrowCount(childName);
+      const tipEl = document.getElementById('borrowCountTip');
+      if (totalCount > 0) {
+        tipEl.innerHTML = `📖 您已累计借阅 <span class="count-num">${totalCount}</span> 次书籍了哦 😄😄 加油！阅读小达人！`;
+        tipEl.style.display = 'block';
+      } else {
+        tipEl.innerHTML = '🌟 欢迎开始您的第一次借阅之旅！';
+        tipEl.style.display = 'block';
+      }
+    } catch (_) { /* 统计加载失败不影响主流程 */ }
     window.scrollTo(0, 0);
   } catch (err) {
     alert('查询失败：' + err.message);
