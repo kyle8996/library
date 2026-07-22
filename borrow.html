@@ -103,6 +103,9 @@
   .empty-hint { font-size:13px; color:var(--success); background:#F0FBF1; border:1px solid #C8EBCB; border-radius:var(--radius-sm); padding:10px 14px; }
   .return-btn { margin-left:auto; background:var(--success); color:#fff; border:none; padding:6px 14px; border-radius:18px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; flex-shrink:0; }
   .return-btn:active { transform:scale(0.96); }
+  .item-not-received { border:2px solid #E91E63 !important; background:#FFF0F6 !important; animation:pulseItem 1.8s infinite; }
+  @keyframes pulseItem { 0%,100%{box-shadow:0 0 0 0 rgba(233,30,99,0.15);} 50%{box-shadow:0 0 0 6px rgba(233,30,99,0);} }
+  .nr-badge { display:inline-block; background:linear-gradient(135deg,#E91E63,#F06292); color:#fff; padding:2px 10px; border-radius:12px; font-size:11px; font-weight:700; margin-left:4px; }
 
   .footer-note { text-align:center; font-size:12px; color:var(--text-light); padding:16px; line-height:1.8; }
   .footer-note .brand { color:var(--primary); font-weight:600; }
@@ -343,16 +346,18 @@ function backToStep1() {
 
 function showLimitWarning(list) {
   const box = document.getElementById('limitWarning');
-  const items = list.map(b => `
-    <div class="current-item">
+  const items = list.map(b => {
+    const isNR = b.status === 'not_received';
+    return `
+    <div class="current-item ${isNR ? 'item-not-received' : ''}">
       <img src="${b.book_photo || ''}" onerror="this.style.display='none'">
-      <div class="ci-info"><b>${escapeHtml(b.child_name)}</b> 的绘本<br>借出：${b.borrow_date} · 应还：${b.due_date}${isOverdue(b) ? '<span class="badge-overdue">已逾期</span>' : ''}</div>
-      <button class="return-btn" onclick="returnBook('${b.id}')">✓ 我还了</button>
-    </div>`).join('');
+      <div class="ci-info"><b>${escapeHtml(b.child_name)}</b> 的绘本${isNR ? '<span class="nr-badge">⚠️ 校区未收到！</span>' : ''}<br>借出：${b.borrow_date} · 应还：${b.due_date}${isOverdue(b) ? '<span class="badge-overdue">已逾期</span>' : ''}${isNR ? '<br><span style="color:#E91E63;font-size:11px;">您已点还书，但老师尚未收到，请确认是否已交到老师手中</span>' : ''}</div>
+      ${isNR ? '' : `<button class="return-btn" onclick="returnBook('${b.id}')">✓ 我还了</button>`}
+    </div>`}).join('');
   box.innerHTML = `
     <div class="warning-box">
       <div class="w-title">⚠️ 暂时无法借阅</div>
-      <p>您目前有 <b>${list.length}</b> 本绘本尚未归还（每人最多同时借阅 ${MAX_BORROW} 本）。<br>孩子把书还回后，点右侧「我还了」即可解除限制：</p>
+      <p>您目前有 <b>${list.length}</b> 本绘本尚未归还（每人最多同时借阅 ${MAX_BORROW} 本）。<br>${list.some(b=>b.status==='not_received') ? '<span style="color:#E91E63;font-weight:600;">注意：其中有标记为「校区未收到」的记录，请确认书已交给老师。</span><br>' : ''}孩子把书还回后，点右侧「我还了」即可解除限制：</p>
       ${items}
     </div>`;
   box.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -383,12 +388,14 @@ function renderUnreturned(list) {
     el.innerHTML = '<div class="empty-hint">🎉 当前没有未还书籍，可以放心借阅啦！</div>';
     return;
   }
-  el.innerHTML = list.map(b => `
-    <div class="current-item">
+  el.innerHTML = list.map(b => {
+    const isNR = b.status === 'not_received';
+    return `
+    <div class="current-item ${isNR ? 'item-not-received' : ''}">
       <img src="${b.book_photo || ''}" onerror="this.style.display='none'">
-      <div class="ci-info"><b>${escapeHtml(b.child_name)}</b> 的绘本<br>借出：${b.borrow_date} · 应还：${b.due_date}${isOverdue(b) ? '<span class="badge-overdue">已逾期</span>' : ''}</div>
-      <button class="return-btn" onclick="returnBook('${b.id}')">✓ 我还了</button>
-    </div>`).join('');
+      <div class="ci-info"><b>${escapeHtml(b.child_name)}</b> 的绘本${isNR ? '<span class="nr-badge">⚠️ 校区未收到！</span>' : ''}<br>借出：${b.borrow_date} · 应还：${b.due_date}${isOverdue(b) ? '<span class="badge-overdue">已逾期</span>' : ''}${isNR ? '<br><span style="color:#E91E63;font-size:11px;">您已点还书，但老师尚未收到，请确认是否已交到老师手中</span>' : ''}</div>
+      ${isNR ? '' : `<button class="return-btn" onclick="returnBook('${b.id}')">✓ 我还了</button>`}
+    </div>`}).join('');
 }
 
 function isOverdue(rec) {
