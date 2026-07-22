@@ -11,20 +11,20 @@ if (USE_SUPABASE) {
 const MAX_BORROW = 3; // 每人同时最多借阅未还数量
 
 const db = {
-  // 查询某孩子「借出中（未还）」的记录
+  // 查询某孩子「借出中（未还）」或「校区未收到」的记录
   async getUnreturned(childName) {
     const name = (childName || '').trim();
     if (USE_SUPABASE) {
       const { data, error } = await _sb
         .from('library_borrowings')
         .select('*')
-        .eq('status', 'borrowed')
+        .in('status', ['borrowed', 'not_received'])
         .ilike('child_name', name);
       if (error) throw error;
       return data || [];
     } else {
       const recs = JSON.parse(localStorage.getItem('dk_library_records') || '[]');
-      return recs.filter(r => r.status === 'borrowed' && (r.child_name || '').trim() === name);
+      return recs.filter(r => (r.status === 'borrowed' || r.status === 'not_received') && (r.child_name || '').trim() === name);
     }
   },
 
@@ -62,7 +62,7 @@ const db = {
     }
   },
 
-  // 标记归还
+  // 标记归还（家长点"我还了"）
   async markReturned(id) {
     if (USE_SUPABASE) {
       const { error } = await _sb
@@ -74,6 +74,38 @@ const db = {
       const recs = JSON.parse(localStorage.getItem('dk_library_records') || '[]');
       const r = recs.find(x => x.id === id);
       if (r) { r.status = 'returned'; r.returned_at = new Date().toISOString(); }
+      localStorage.setItem('dk_library_records', JSON.stringify(recs));
+    }
+  },
+
+  // 标记「校区未收到」（老师确认家长点了还书但实际没收到书）
+  async markNotReceived(id) {
+    if (USE_SUPABASE) {
+      const { error } = await _sb
+        .from('library_borrowings')
+        .update({ status: 'not_received' })
+        .eq('id', id);
+      if (error) throw error;
+    } else {
+      const recs = JSON.parse(localStorage.getItem('dk_library_records') || '[]');
+      const r = recs.find(x => x.id === id);
+      if (r) r.status = 'not_received';
+      localStorage.setItem('dk_library_records', JSON.stringify(recs));
+    }
+  },
+
+  // 标记「确认收到」（老师从"未收到"恢复为"已归还"）
+  async markReceived(id) {
+    if (USE_SUPABASE) {
+      const { error } = await _sb
+        .from('library_borrowings')
+        .update({ status: 'returned' })
+        .eq('id', id);
+      if (error) throw error;
+    } else {
+      const recs = JSON.parse(localStorage.getItem('dk_library_records') || '[]');
+      const r = recs.find(x => x.id === id);
+      if (r) r.status = 'returned';
       localStorage.setItem('dk_library_records', JSON.stringify(recs));
     }
   },
