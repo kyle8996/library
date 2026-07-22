@@ -101,6 +101,8 @@
   .current-item .ci-info b { color:var(--text); font-size:13px; }
   .badge-overdue { background:#FFEBEE; color:var(--danger); padding:1px 8px; border-radius:10px; font-size:11px; font-weight:600; margin-left:6px; }
   .empty-hint { font-size:13px; color:var(--success); background:#F0FBF1; border:1px solid #C8EBCB; border-radius:var(--radius-sm); padding:10px 14px; }
+  .return-btn { margin-left:auto; background:var(--success); color:#fff; border:none; padding:6px 14px; border-radius:18px; font-size:12px; font-weight:600; cursor:pointer; white-space:nowrap; flex-shrink:0; }
+  .return-btn:active { transform:scale(0.96); }
 
   .footer-note { text-align:center; font-size:12px; color:var(--text-light); padding:16px; line-height:1.8; }
   .footer-note .brand { color:var(--primary); font-weight:600; }
@@ -190,11 +192,11 @@
 
       <div class="date-row">
         <div class="form-group">
-          <label class="form-label">借阅日期 <span class="required">*</span></label>
+          <label class="form-label">借阅日期 <span style="font-size:12px;color:var(--text-light);font-weight:400;">（可选·默认今天）</span></label>
           <input type="date" class="form-input" id="borrowDate">
         </div>
         <div class="form-group">
-          <label class="form-label">应还日期</label>
+          <label class="form-label">应还日期 <span style="font-size:12px;color:var(--text-light);font-weight:400;">（自动·不可改）</span></label>
           <input type="date" class="form-input" id="dueDate" readonly style="background:#F5F0EB; color:var(--primary-dark); font-weight:600;">
         </div>
       </div>
@@ -244,30 +246,60 @@ document.getElementById('borrowDate').value = today;
 const dueDateObj = new Date(); dueDateObj.setDate(dueDateObj.getDate() + 7);
 document.getElementById('dueDate').value = dueDateObj.toISOString().split('T')[0];
 
+// 借阅日期可选：选了就按所选+7天；清空则按今天+7天（应还日期始终自动、不可改）
 document.getElementById('borrowDate').addEventListener('change', function() {
-  if (this.value) {
-    const d = new Date(this.value); d.setDate(d.getDate() + 7);
-    document.getElementById('dueDate').value = d.toISOString().split('T')[0];
-  }
+  const base = this.value ? new Date(this.value) : new Date();
+  const d = new Date(base); d.setDate(d.getDate() + 7);
+  document.getElementById('dueDate').value = d.toISOString().split('T')[0];
 });
 
 let currentChild = null;
+let currentChildName = '';
 let photoData = null;
 
-// ===== 照片处理 =====
+// ===== 照片处理（自动压缩，避免原图过大）=====
 function handlePhoto(input) {
   if (input.files && input.files[0]) {
     const file = input.files[0];
-    if (file.size > 10 * 1024 * 1024) { alert('图片大小不能超过10MB'); return; }
+    if (file.size > 15 * 1024 * 1024) { alert('图片大小不能超过15MB'); return; }
     const reader = new FileReader();
     reader.onload = function(e) {
-      photoData = e.target.result;
-      const preview = document.getElementById('photoPreview');
-      preview.src = photoData; preview.style.display = 'block';
-      document.getElementById('photoUpload').classList.add('has-image');
+      // 先压缩再存储/预览，减少上传体积与缓存
+      compressImage(e.target.result).then(compressed => {
+        photoData = compressed;
+        const preview = document.getElementById('photoPreview');
+        preview.src = photoData; preview.style.display = 'block';
+        document.getElementById('photoUpload').classList.add('has-image');
+      }).catch(() => {
+        // 压缩失败则退回原图
+        photoData = e.target.result;
+        const preview = document.getElementById('photoPreview');
+        preview.src = photoData; preview.style.display = 'block';
+        document.getElementById('photoUpload').classList.add('has-image');
+      });
     };
     reader.readAsDataURL(file);
   }
+}
+
+// 用 canvas 将图片压缩：最长边不超过 maxDim，输出 JPEG quality
+function compressImage(dataUrl, maxDim = 1000, quality = 0.7) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > height && width > maxDim) { height = Math.round(height * maxDim / width); width = maxDim; }
+      else if (height >= width && height > maxDim) { width = Math.round(width * maxDim / height); height = maxDim; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = reject;
+    img.src = dataUrl;
+  });
 }
 
 function toggleCommit(el) { el.classList.toggle('checked'); }
@@ -280,6 +312,7 @@ async function goStep2() {
   if (!childName) { alert('请填写孩子中文名'); return; }
   if (!className) { alert('请填写所在班级'); return; }
   if (!teacherName) { alert('请填写带班老师'); return; }
+  currentChildName = childName;
 
   showLoading(true);
   try {
@@ -314,14 +347,34 @@ function showLimitWarning(list) {
     <div class="current-item">
       <img src="${b.book_photo || ''}" onerror="this.style.display='none'">
       <div class="ci-info"><b>${escapeHtml(b.child_name)}</b> 的绘本<br>借出：${b.borrow_date} · 应还：${b.due_date}${isOverdue(b) ? '<span class="badge-overdue">已逾期</span>' : ''}</div>
+      <button class="return-btn" onclick="returnBook('${b.id}')">✓ 我还了</button>
     </div>`).join('');
   box.innerHTML = `
     <div class="warning-box">
       <div class="w-title">⚠️ 暂时无法借阅</div>
-      <p>您目前有 <b>${list.length}</b> 本绘本尚未归还（每人最多同时借阅 ${MAX_BORROW} 本）。<br>请先归还以下图书后，再扫码借阅新绘本：</p>
+      <p>您目前有 <b>${list.length}</b> 本绘本尚未归还（每人最多同时借阅 ${MAX_BORROW} 本）。<br>孩子把书还回后，点右侧「我还了」即可解除限制：</p>
       ${items}
     </div>`;
   box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+// 家长自主还书：标记归还后刷新未还列表，低于上限即可借阅
+async function returnBook(id) {
+  if (!confirm('确认这本绘本已经还回给老师了吗？')) return;
+  try {
+    await db.markReturned(id);
+    alert('已标记为归还，谢谢配合！🎉');
+    const list = await db.getUnreturned(currentChildName);
+    if (document.getElementById('step2').style.display === 'none') {
+      // 在第一步的限制提示里
+      if (list.length >= MAX_BORROW) showLimitWarning(list);
+      else document.getElementById('limitWarning').innerHTML = '<div class="empty-hint">🎉 已归还！现在可以继续借阅新绘本啦~</div>';
+    } else {
+      renderUnreturned(list);
+    }
+  } catch (err) {
+    alert('操作失败：' + err.message);
+  }
 }
 
 function renderUnreturned(list) {
@@ -334,6 +387,7 @@ function renderUnreturned(list) {
     <div class="current-item">
       <img src="${b.book_photo || ''}" onerror="this.style.display='none'">
       <div class="ci-info"><b>${escapeHtml(b.child_name)}</b> 的绘本<br>借出：${b.borrow_date} · 应还：${b.due_date}${isOverdue(b) ? '<span class="badge-overdue">已逾期</span>' : ''}</div>
+      <button class="return-btn" onclick="returnBook('${b.id}')">✓ 我还了</button>
     </div>`).join('');
 }
 
@@ -344,7 +398,6 @@ function isOverdue(rec) {
 // ===== 提交 =====
 function validateForm() {
   if (!photoData) { alert('请拍摄或上传图书封面照片'); return false; }
-  if (!document.getElementById('borrowDate').value) { alert('请选择借阅日期'); return false; }
   const commits = document.querySelectorAll('.commit-item');
   for (const c of commits) {
     if (!c.classList.contains('checked')) { alert('请勾选全部爱书承诺后再提交'); return false; }
@@ -359,12 +412,13 @@ async function handleSubmit() {
   showLoading(true);
   try {
     const photoUrl = await db.uploadPhoto(photoData);
+    const borrowDate = document.getElementById('borrowDate').value || today;
     const record = {
       child_name: currentChild.childName,
       class_name: currentChild.className,
       teacher_name: currentChild.teacherName,
       book_photo: photoUrl,
-      borrow_date: document.getElementById('borrowDate').value,
+      borrow_date: borrowDate,
       due_date: document.getElementById('dueDate').value,
       status: 'borrowed',
       commitments: Array.from(document.querySelectorAll('.commit-item')).map(c => ({
