@@ -152,20 +152,30 @@
   <div id="step1">
     <div class="card">
       <div class="card-title"><span class="icon">👤</span> 借阅人信息</div>
+
+      <!-- 上次填写记忆条（仅在有记录时显示） -->
+      <div id="lastBorrowerBar" style="display:none;" onclick="fillLastBorrower()">
+        <div style="background:linear-gradient(135deg,#FFF8E1,#FFECB3);border:1.5px solid #FFD54F;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:8px;cursor:pointer;transition:all .2s;" onmouseover="this.style.background='linear-gradient(135deg,#FFECB3,#FFE082)'" onmouseout="this.style.background='linear-gradient(135deg,#FFF8E1,#FFECB3)'">
+          <span style="font-size:22px;">📝</span>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:700;color:#E65100;">使用上次填写的信息</div>
+            <div id="lastBorrowerPreview" style="font-size:12px;color:#9E7A00;margin-top:2px;"></div>
+          </div>
+          <span style="color:#F57C00;font-size:18px;">›</span>
+        </div>
+      </div>
+
       <div class="form-group">
         <label class="form-label">孩子中文名 <span class="required">*</span></label>
-        <input type="text" class="form-input" id="childName" placeholder="请填写孩子全名哦" maxlength="20" list="dl-childName" autocomplete="off">
-        <datalist id="dl-childName"></datalist>
+        <input type="text" class="form-input" id="childName" placeholder="请填写孩子全名哦" maxlength="20">
       </div>
       <div class="form-group">
         <label class="form-label">所在班级 <span class="required">*</span></label>
-        <input type="text" class="form-input" id="className" placeholder="请输入所在班级" maxlength="30" list="dl-className" autocomplete="off">
-        <datalist id="dl-className"></datalist>
+        <input type="text" class="form-input" id="className" placeholder="请输入所在班级" maxlength="30">
       </div>
       <div class="form-group">
         <label class="form-label">带班老师 <span class="required">*</span></label>
-        <input type="text" class="form-input" id="teacherName" placeholder="请输入带班老师姓名" maxlength="20" list="dl-teacherName" autocomplete="off">
-        <datalist id="dl-teacherName"></datalist>
+        <input type="text" class="form-input" id="teacherName" placeholder="请输入带班老师姓名" maxlength="20">
       </div>
     </div>
 
@@ -268,32 +278,40 @@ document.getElementById('borrowDate').addEventListener('change', function() {
   document.getElementById('dueDateDisplay').textContent = newDue;
 });
 
-// ===== 记住上次填写（localStorage + datalist 下拉提示）=====
+// ===== 记住上次填写（localStorage + 记忆条按钮）=====
 const LS_KEY = 'dk_library_last_borrower';
+let lastBorrowerData = null;
+
 function loadLastBorrower() {
   try {
-    const last = JSON.parse(localStorage.getItem(LS_KEY) || '{}');
-    if (last.childName) setDatalist('dl-childName', last.childName);
-    if (last.className)   setDatalist('dl-className', last.className);
-    if (last.teacherName) setDatalist('dl-teacherName', last.teacherName);
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return;
+    lastBorrowerData = JSON.parse(raw);
+    if (lastBorrowerData.childName || lastBorrowerData.className || lastBorrowerData.teacherName) {
+      // 显示记忆条
+      const bar = document.getElementById('lastBorrowerBar');
+      const preview = document.getElementById('lastBorrowerPreview');
+      preview.textContent = `${lastBorrowerData.childName || '—'} · ${lastBorrowerData.className || '—'} 班 · ${lastBorrowerData.teacherName || '—'} 老师`;
+      bar.style.display = 'block';
+    }
   } catch(_) {}
 }
-function setDatalist(id, value) {
-  const dl = document.getElementById(id);
-  if (!dl || !value) return;
-  // 避免重复
-  const existing = Array.from(dl.querySelectorAll('option')).map(o => o.value);
-  if (!existing.includes(value)) {
-    const opt = document.createElement('option');
-    opt.value = value; dl.appendChild(opt);
-  }
+
+function fillLastBorrower() {
+  if (!lastBorrowerData) return;
+  if (lastBorrowerData.childName)   document.getElementById('childName').value   = lastBorrowerData.childName;
+  if (lastBorrowerData.className)   document.getElementById('className').value    = lastBorrowerData.className;
+  if (lastBorrowerData.teacherName) document.getElementById('teacherName').value = lastBorrowerData.teacherName;
+  // 填完后隐藏记忆条
+  document.getElementById('lastBorrowerBar').style.display = 'none';
 }
+
 function saveLastBorrower(childName, className, teacherName) {
   try {
     localStorage.setItem(LS_KEY, JSON.stringify({ childName, className, teacherName }));
   } catch(_) {}
 }
-// 页面加载时恢复上次填写的值到下拉列表
+// 页面加载时检查是否有上次记录
 loadLastBorrower();
 
 let currentChild = null;
