@@ -1,4 +1,5 @@
 // ===== DK 绘本借阅系统 · Supabase 配置 =====
-// Supabase 后台 → Settings → API Keys → Legacy anon, service_role API keys
+// Supabase 后台 → Settings → API Keys → 复制 publishable key（sb_publishable_ 开头）
+// 注意：经典 anon JWT（eyJ... 开头）已于 2026 年被 Supabase 停用，必须用新版 publishable key
 const SUPABASE_URL = 'https://chasxggorljjqqmficnh.supabase.co';
-const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNoYXN4Z2dvcmxqanFxbWZpY25oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MDI1NzIsImV4cCI6MjA5NzA3ODU3Mn0.E0xlNCX_jFn8X9LheAR3jFHokzWSkZlXkBDReqTvL6c';
+const SUPABASE_ANON_KEY = 'sb_publishable_R_ownBYkY4ClztpbfSK2aw_QhmIG5Lt';
