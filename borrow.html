@@ -401,7 +401,7 @@ async function goStep2() {
     } catch (_) { /* 统计加载失败不影响主流程 */ }
     window.scrollTo(0, 0);
   } catch (err) {
-    alert('查询失败：' + err.message);
+    alert('网络连接不太顺畅，请点「确定」后再点一次「下一步」重试；还是不行的话，切换一下 Wi-Fi / 移动数据再试哦');
   } finally {
     showLoading(false);
   }
@@ -448,7 +448,7 @@ async function returnBook(id) {
       renderUnreturned(list);
     }
   } catch (err) {
-    alert('操作失败：' + err.message);
+    alert('网络连接不太顺畅，操作没有成功，请稍后再试一次');
   }
 }
 
@@ -509,7 +509,8 @@ async function handleSubmit() {
     document.getElementById('successOverlay').classList.add('show');
     resetAll();
   } catch (err) {
-    console.error(err); alert('提交失败：' + err.message);
+    console.error(err);
+    alert('网络连接不太顺畅，提交没有成功。请点「确定」后重新点一次「确认借阅」；还是不行的话，切换一下 Wi-Fi / 移动数据再试哦');
   } finally {
     btn.disabled = false; btn.textContent = '确认登记借阅 ✨'; showLoading(false);
   }
