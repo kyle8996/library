@@ -387,7 +387,7 @@ if (typeof USE_SUPABASE === 'undefined' || !USE_SUPABASE) {
 }
 initQR();
 loadRecords().then(renderRecords).catch(e => {
-  document.getElementById('recordsList').innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>加载失败：${e.message}</p></div>`;
+  document.getElementById('recordsList').innerHTML = `<div class="empty-state"><div class="icon">⚠️</div><p>网络连接不太顺畅，加载失败<br><small>请刷新页面重试；还是不行请检查网络或稍后再试</small></p></div>`;
 });
 setInterval(() => { loadRecords().then(renderRecords); }, 60000);
 </script>
