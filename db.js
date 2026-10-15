@@ -8,6 +8,20 @@ if (USE_SUPABASE) {
   _sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 }
 
+// 网络抖动自动重试（读取/更新操作用；insert 不重试以免产生重复记录）
+async function withRetry(fn, times = 3) {
+  let lastErr;
+  for (let i = 0; i < times; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      lastErr = e;
+      if (i < times - 1) await new Promise(r => setTimeout(r, 600 * (i + 1)));
+    }
+  }
+  throw lastErr;
+}
+
 const MAX_BORROW = 3; // 每人同时最多借阅未还数量
 
 const db = {
@@ -15,10 +29,11 @@ const db = {
   async getTotalBorrowCount(childName) {
     const name = (childName || '').trim();
     if (USE_SUPABASE) {
-      const { count, error } = await _sb
-        .from('library_borrowings')
-        .select('*', { count: 'exact', head: true })
-        .ilike('child_name', name);
+      const { count, error } = await withRetry(() =>
+        _sb.from('library_borrowings')
+          .select('*', { count: 'exact', head: true })
+          .ilike('child_name', name)
+      );
       if (error) throw error;
       return count || 0;
     } else {
@@ -31,11 +46,12 @@ const db = {
   async getUnreturned(childName) {
     const name = (childName || '').trim();
     if (USE_SUPABASE) {
-      const { data, error } = await _sb
-        .from('library_borrowings')
-        .select('*')
-        .in('status', ['borrowed', 'not_received'])
-        .ilike('child_name', name);
+      const { data, error } = await withRetry(() =>
+        _sb.from('library_borrowings')
+          .select('*')
+          .in('status', ['borrowed', 'not_received'])
+          .ilike('child_name', name)
+      );
       if (error) throw error;
       return data || [];
     } else {
@@ -67,10 +83,11 @@ const db = {
   // 获取全部记录（管理后台用）
   async getAll() {
     if (USE_SUPABASE) {
-      const { data, error } = await _sb
-        .from('library_borrowings')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const { data, error } = await withRetry(() =>
+        _sb.from('library_borrowings')
+          .select('*')
+          .order('created_at', { ascending: false })
+      );
       if (error) throw error;
       return data || [];
     } else {
@@ -81,10 +98,11 @@ const db = {
   // 标记归还（家长点"我还了"）
   async markReturned(id) {
     if (USE_SUPABASE) {
-      const { error } = await _sb
-        .from('library_borrowings')
-        .update({ status: 'returned', returned_at: new Date().toISOString() })
-        .eq('id', id);
+      const { error } = await withRetry(() =>
+        _sb.from('library_borrowings')
+          .update({ status: 'returned', returned_at: new Date().toISOString() })
+          .eq('id', id)
+      );
       if (error) throw error;
     } else {
       const recs = JSON.parse(localStorage.getItem('dk_library_records') || '[]');
@@ -97,10 +115,9 @@ const db = {
   // 标记「校区未收到」（老师确认家长点了还书但实际没收到书）
   async markNotReceived(id) {
     if (USE_SUPABASE) {
-      const { error } = await _sb
-        .from('library_borrowings')
-        .update({ status: 'not_received' })
-        .eq('id', id);
+      const { error } = await withRetry(() =>
+        _sb.from('library_borrowings').update({ status: 'not_received' }).eq('id', id)
+      );
       if (error) throw error;
     } else {
       const recs = JSON.parse(localStorage.getItem('dk_library_records') || '[]');
@@ -113,10 +130,9 @@ const db = {
   // 标记「确认收到」（老师从"未收到"恢复为"已归还"）
   async markReceived(id) {
     if (USE_SUPABASE) {
-      const { error } = await _sb
-        .from('library_borrowings')
-        .update({ status: 'returned' })
-        .eq('id', id);
+      const { error } = await withRetry(() =>
+        _sb.from('library_borrowings').update({ status: 'returned' }).eq('id', id)
+      );
       if (error) throw error;
     } else {
       const recs = JSON.parse(localStorage.getItem('dk_library_records') || '[]');
@@ -129,10 +145,9 @@ const db = {
   // 归档记录（从列表隐藏，但保留数据，累计借阅次数不变）
   async archiveRecord(id) {
     if (USE_SUPABASE) {
-      const { error } = await _sb
-        .from('library_borrowings')
-        .update({ status: 'archived' })
-        .eq('id', id);
+      const { error } = await withRetry(() =>
+        _sb.from('library_borrowings').update({ status: 'archived' }).eq('id', id)
+      );
       if (error) throw error;
     } else {
       const recs = JSON.parse(localStorage.getItem('dk_library_records') || '[]');
