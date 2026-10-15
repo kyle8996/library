@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>DK邻里少儿英语 · 绘本借阅登记</title>
 <style>
   :root {
@@ -258,8 +261,12 @@
 <div id="loadingMask"><div class="spinner"></div></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="config.js?v=3"></script>
-<script src="db.js?v=3"></script>
+<script>
+  // 用时间戳强制刷新本地脚本，避免微信/手机浏览器缓存旧版 config.js / db.js（曾导致旧 key 一直生效、报 Load failed）
+  var CB = '?v=' + Date.now();
+  document.write('<scr' + 'ipt src="config.js' + CB + '"><\/scr' + 'ipt>');
+  document.write('<scr' + 'ipt src="db.js' + CB + '"><\/scr' + 'ipt>');
+</script>
 <script>
 // ===== 初始化 =====
 const today = new Date().toISOString().split('T')[0];
